@@ -14,6 +14,7 @@ export interface ContactListParams {
 
 const ALLOWED_SORT_COLUMNS = ['first_name', 'last_name', 'created_at', 'updated_at'];
 
+// Generates WHERE clause conditions and parameters with PostgreSQL positional syntax ($1, $2)
 const buildWhereClause = (params: ContactListParams): { sql: string; values: any[]; nextIndex: number } => {
   const conditions: string[] = [];
   const values: any[] = [];
@@ -132,4 +133,22 @@ export const updateContactNote = async (id: string, accountId: string, note: str
   const query = 'UPDATE contacts SET personal_note = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3';
   const result = await pool.query(query, [note, id, accountId]);
   return (result.rowCount ?? 0) > 0;
+};
+
+export const getContactStats = async (accountId: string) => {
+  const query = `
+    SELECT 
+      COUNT(*) as total_contacts,
+      SUM(CASE WHEN is_favorite = TRUE THEN 1 ELSE 0 END) as favorite_contacts,
+      SUM(CASE WHEN personal_note IS NOT NULL AND TRIM(personal_note) != '' THEN 1 ELSE 0 END) as contacts_with_notes
+    FROM contacts
+    WHERE account_id = $1
+  `;
+  const result = await pool.query(query, [accountId]);
+  const row = result.rows[0];
+  return {
+    total_contacts: Number(row.total_contacts || 0),
+    favorite_contacts: Number(row.favorite_contacts || 0),
+    contacts_with_notes: Number(row.contacts_with_notes || 0),
+  };
 };
