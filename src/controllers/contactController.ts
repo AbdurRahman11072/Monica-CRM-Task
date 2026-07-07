@@ -6,6 +6,7 @@ import {
   findAllContactsPaginated,
   updateContactFavorite,
   updateContactNote,
+  getContactStats,
 } from '../models/contact';
 
 export const handleCreateContact = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -207,6 +208,7 @@ export const updateNote = async (req: AuthRequest, res: Response, next: NextFunc
       return;
     }
 
+    // Check if request body has personal_note. Allow null/empty string as removal.
     if (personal_note === undefined) {
       res.status(400).json({ message: 'personal_note is required in request body' });
       return;
@@ -223,6 +225,21 @@ export const updateNote = async (req: AuthRequest, res: Response, next: NextFunc
       message: 'Contact personal note updated',
       data: contact,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStats = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const accountId = req.user?.account_id;
+    if (!accountId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const stats = await getContactStats(accountId);
+    res.status(200).json(stats);
   } catch (error) {
     next(error);
   }
