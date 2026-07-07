@@ -121,3 +121,15 @@ export const findAllContactsPaginated = async (params: ContactListParams): Promi
     },
   };
 };
+
+export const updateContactFavorite = async (id: string, accountId: string, isFavorite: boolean): Promise<boolean> => {
+  const query = 'UPDATE contacts SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3';
+  const result = await pool.query(query, [isFavorite, id, accountId]);
+  return (result.rowCount ?? 0) > 0;
+};
+
+export const updateContactNote = async (id: string, accountId: string, note: string | null): Promise<boolean> => {
+  const query = 'UPDATE contacts SET personal_note = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3';
+  const result = await pool.query(query, [note, id, accountId]);
+  return (result.rowCount ?? 0) > 0;
+};
