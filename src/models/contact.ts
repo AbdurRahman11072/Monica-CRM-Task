@@ -12,6 +12,35 @@ export interface ContactListParams {
   direction?: 'asc' | 'desc';
 }
 
+const buildWhereClause = (params: ContactListParams): { sql: string; values: any[]; nextIndex: number } => {
+  const conditions: string[] = [];
+  const values: any[] = [];
+  let index = 1;
+
+  conditions.push(`account_id = $${index++}`);
+  values.push(params.accountId);
+
+  if (params.favorite !== undefined) {
+    conditions.push(`is_favorite = $${index++}`);
+    values.push(params.favorite);
+  }
+
+  if (params.search && params.search.trim() !== '') {
+    const searchTerm = `%${params.search.trim()}%`;
+    conditions.push(
+      `(first_name ILIKE $${index} OR middle_name ILIKE $${index} OR last_name ILIKE $${index} OR nickname ILIKE $${index})`
+    );
+    values.push(searchTerm);
+    index++;
+  }
+
+  return {
+    sql: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    values,
+    nextIndex: index,
+  };
+};
+
 export const createContact = async (contactData: Omit<Contact, 'id' | 'is_favorite' | 'personal_note'>): Promise<Contact> => {
   const id = uuidv4();
   const query = `
