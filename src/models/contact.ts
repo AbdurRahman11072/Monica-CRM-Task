@@ -12,6 +12,8 @@ export interface ContactListParams {
   direction?: 'asc' | 'desc';
 }
 
+const ALLOWED_SORT_COLUMNS = ['first_name', 'last_name', 'created_at', 'updated_at'];
+
 const buildWhereClause = (params: ContactListParams): { sql: string; values: any[]; nextIndex: number } => {
   const conditions: string[] = [];
   const values: any[] = [];
@@ -73,4 +75,49 @@ export const findContactById = async (id: string, accountId: string): Promise<Co
   const result = await pool.query(query, [id, accountId]);
   if (result.rows.length === 0) return null;
   return result.rows[0] as Contact;
+};
+
+export const findAllContactsPaginated = async (params: ContactListParams): Promise<PaginatedResponse<Contact>> => {
+  const page = params.page || 1;
+  const limit = params.limit || 10;
+  const offset = (page - 1) * limit;
+
+  const { sql: whereSql, values: whereValues, nextIndex } = buildWhereClause(params);
+
+  // Get total count matching criteria
+  const countQuery = `SELECT COUNT(*) as total FROM contacts ${whereSql}`;
+  const countResult = await pool.query(countQuery, whereValues);
+  const total = Number(countResult.rows[0].total || 0);
+
+  // Validate sorting parameters to prevent SQL injection
+  let sortColumn = 'first_name';
+  if (params.sort && ALLOWED_SORT_COLUMNS.includes(params.sort)) {
+    sortColumn = params.sort;
+  }
+  const direction = params.direction === 'desc' ? 'DESC' : 'ASC';
+
+  // Get records
+  const selectQuery = `
+    SELECT * FROM contacts 
+    ${whereSql}
+    ORDER BY ${sortColumn} ${direction}
+    LIMIT $${nextIndex} OFFSET $${nextIndex + 1}
+  `;
+
+  const result = await pool.query(
+    selectQuery,
+    [...whereValues, limit, offset]
+  );
+
+  const last_page = Math.ceil(total / limit);
+
+  return {
+    data: result.rows as Contact[],
+    meta: {
+      current_page: page,
+      per_page: limit,
+      last_page: last_page || 1,
+      total,
+    },
+  };
 };
