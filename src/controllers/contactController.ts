@@ -1,26 +1,30 @@
-import { Response, NextFunction } from 'express';
-import { AuthRequest } from '../types';
+import { NextFunction, Response } from "express";
 import {
   createContact,
-  findContactById,
   findAllContactsPaginated,
+  findContactById,
+  getContactStats,
   updateContactFavorite,
   updateContactNote,
-  getContactStats,
-} from '../models/contact';
+} from "../models/contact";
+import { AuthRequest } from "../types";
 
-export const handleCreateContact = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const handleCreateContact = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { first_name, middle_name, last_name, nickname } = req.body;
     const accountId = req.user?.account_id;
 
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     if (!first_name) {
-      res.status(400).json({ message: 'First name is required' });
+      res.status(400).json({ message: "First name is required" });
       return;
     }
 
@@ -38,31 +42,43 @@ export const handleCreateContact = async (req: AuthRequest, res: Response, next:
   }
 };
 
-export const listContacts = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const listContacts = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const { favorite, search, page, limit, sort, direction } = req.query;
 
-    const isFavoriteFilter = favorite !== undefined ? favorite === '1' || favorite === 'true' : undefined;
+    const isFavoriteFilter =
+      favorite !== undefined
+        ? favorite === "1" || favorite === "true"
+        : undefined;
     const pageNum = page ? parseInt(page as string) : 1;
     const limitNum = limit ? parseInt(limit as string) : 10;
-    const sortCol = sort ? (sort as string) : 'first_name';
-    const sortDir = direction === 'desc' ? 'desc' : 'asc';
+    const sortCol = sort ? (sort as string) : "first_name";
+    const sortDir = direction === "desc" ? "desc" : "asc";
 
-    const result = await findAllContactsPaginated({
+    const params: any = {
       accountId,
-      favorite: isFavoriteFilter,
       search: search ? (search as string) : undefined,
       page: pageNum,
       limit: limitNum,
       sort: sortCol,
       direction: sortDir,
-    });
+    };
+
+    if (isFavoriteFilter !== undefined) {
+      params.favorite = isFavoriteFilter;
+    }
+
+    const result = await findAllContactsPaginated(params);
 
     res.status(200).json(result);
   } catch (error) {
@@ -70,19 +86,23 @@ export const listContacts = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const listFavorites = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const listFavorites = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const { page, limit, sort, direction } = req.query;
     const pageNum = page ? parseInt(page as string) : 1;
     const limitNum = limit ? parseInt(limit as string) : 10;
-    const sortCol = sort ? (sort as string) : 'first_name';
-    const sortDir = direction === 'desc' ? 'desc' : 'asc';
+    const sortCol = sort ? (sort as string) : "first_name";
+    const sortDir = direction === "desc" ? "desc" : "asc";
 
     const result = await findAllContactsPaginated({
       accountId,
@@ -99,18 +119,22 @@ export const listFavorites = async (req: AuthRequest, res: Response, next: NextF
   }
 };
 
-export const getContactDetails = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const getContactDetails = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const id = req.params.id as string;
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const contact = await findContactById(id, accountId);
     if (!contact) {
-      res.status(404).json({ message: 'Contact not found' });
+      res.status(404).json({ message: "Contact not found" });
       return;
     }
 
@@ -120,24 +144,28 @@ export const getContactDetails = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const markFavorite = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const markFavorite = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const id = req.params.id as string;
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const updated = await updateContactFavorite(id, accountId, true);
     if (!updated) {
-      res.status(404).json({ message: 'Contact not found' });
+      res.status(404).json({ message: "Contact not found" });
       return;
     }
 
     const contact = await findContactById(id, accountId);
     res.status(200).json({
-      message: 'Contact marked as favorite',
+      message: "Contact marked as favorite",
       data: contact,
     });
   } catch (error) {
@@ -145,24 +173,28 @@ export const markFavorite = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const removeFavorite = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const removeFavorite = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const id = req.params.id as string;
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const updated = await updateContactFavorite(id, accountId, false);
     if (!updated) {
-      res.status(404).json({ message: 'Contact not found' });
+      res.status(404).json({ message: "Contact not found" });
       return;
     }
 
     const contact = await findContactById(id, accountId);
     res.status(200).json({
-      message: 'Contact removed from favorites',
+      message: "Contact removed from favorites",
       data: contact,
     });
   } catch (error) {
@@ -170,18 +202,22 @@ export const removeFavorite = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const toggleFavorite = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const toggleFavorite = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const id = req.params.id as string;
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     const contact = await findContactById(id, accountId);
     if (!contact) {
-      res.status(404).json({ message: 'Contact not found' });
+      res.status(404).json({ message: "Contact not found" });
       return;
     }
 
@@ -198,31 +234,37 @@ export const toggleFavorite = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const updateNote = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const updateNote = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const id = req.params.id as string;
     const { personal_note } = req.body;
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     // Check if request body has personal_note. Allow null/empty string as removal.
     if (personal_note === undefined) {
-      res.status(400).json({ message: 'personal_note is required in request body' });
+      res
+        .status(400)
+        .json({ message: "personal_note is required in request body" });
       return;
     }
 
     const updated = await updateContactNote(id, accountId, personal_note);
     if (!updated) {
-      res.status(404).json({ message: 'Contact not found' });
+      res.status(404).json({ message: "Contact not found" });
       return;
     }
 
     const contact = await findContactById(id, accountId);
     res.status(200).json({
-      message: 'Contact personal note updated',
+      message: "Contact personal note updated",
       data: contact,
     });
   } catch (error) {
@@ -230,11 +272,15 @@ export const updateNote = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
-export const getStats = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const getStats = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const accountId = req.user?.account_id;
     if (!accountId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 

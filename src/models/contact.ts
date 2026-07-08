@@ -1,6 +1,6 @@
-import pool from '../config/db';
-import { Contact, PaginatedResponse } from '../types';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
+import pool from "../config/db";
+import { Contact, PaginatedResponse } from "../types";
 
 export interface ContactListParams {
   accountId: string;
@@ -9,13 +9,20 @@ export interface ContactListParams {
   page?: number;
   limit?: number;
   sort?: string;
-  direction?: 'asc' | 'desc';
+  direction?: "asc" | "desc";
 }
 
-const ALLOWED_SORT_COLUMNS = ['first_name', 'last_name', 'created_at', 'updated_at'];
+const ALLOWED_SORT_COLUMNS = [
+  "first_name",
+  "last_name",
+  "created_at",
+  "updated_at",
+];
 
 // Generates WHERE clause conditions and parameters with PostgreSQL positional syntax ($1, $2)
-const buildWhereClause = (params: ContactListParams): { sql: string; values: any[]; nextIndex: number } => {
+const buildWhereClause = (
+  params: ContactListParams,
+): { sql: string; values: any[]; nextIndex: number } => {
   const conditions: string[] = [];
   const values: any[] = [];
   let index = 1;
@@ -28,23 +35,25 @@ const buildWhereClause = (params: ContactListParams): { sql: string; values: any
     values.push(params.favorite);
   }
 
-  if (params.search && params.search.trim() !== '') {
+  if (params.search && params.search.trim() !== "") {
     const searchTerm = `%${params.search.trim()}%`;
     conditions.push(
-      `(first_name ILIKE $${index} OR middle_name ILIKE $${index} OR last_name ILIKE $${index} OR nickname ILIKE $${index})`
+      `(first_name ILIKE $${index} OR middle_name ILIKE $${index} OR last_name ILIKE $${index} OR nickname ILIKE $${index})`,
     );
     values.push(searchTerm);
     index++;
   }
 
   return {
-    sql: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    sql: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     values,
     nextIndex: index,
   };
 };
 
-export const createContact = async (contactData: Omit<Contact, 'id' | 'is_favorite' | 'personal_note'>): Promise<Contact> => {
+export const createContact = async (
+  contactData: Omit<Contact, "id" | "is_favorite" | "personal_note">,
+): Promise<Contact> => {
   const id = uuidv4();
   const query = `
     INSERT INTO contacts (id, account_id, first_name, middle_name, last_name, nickname, is_favorite, personal_note)
@@ -71,19 +80,28 @@ export const createContact = async (contactData: Omit<Contact, 'id' | 'is_favori
   };
 };
 
-export const findContactById = async (id: string, accountId: string): Promise<Contact | null> => {
-  const query = 'SELECT * FROM contacts WHERE id = $1 AND account_id = $2';
+export const findContactById = async (
+  id: string,
+  accountId: string,
+): Promise<Contact | null> => {
+  const query = "SELECT * FROM contacts WHERE id = $1 AND account_id = $2";
   const result = await pool.query(query, [id, accountId]);
   if (result.rows.length === 0) return null;
   return result.rows[0] as Contact;
 };
 
-export const findAllContactsPaginated = async (params: ContactListParams): Promise<PaginatedResponse<Contact>> => {
+export const findAllContactsPaginated = async (
+  params: ContactListParams,
+): Promise<PaginatedResponse<Contact>> => {
   const page = params.page || 1;
   const limit = params.limit || 10;
   const offset = (page - 1) * limit;
 
-  const { sql: whereSql, values: whereValues, nextIndex } = buildWhereClause(params);
+  const {
+    sql: whereSql,
+    values: whereValues,
+    nextIndex,
+  } = buildWhereClause(params);
 
   // Get total count matching criteria
   const countQuery = `SELECT COUNT(*) as total FROM contacts ${whereSql}`;
@@ -91,11 +109,11 @@ export const findAllContactsPaginated = async (params: ContactListParams): Promi
   const total = Number(countResult.rows[0].total || 0);
 
   // Validate sorting parameters to prevent SQL injection
-  let sortColumn = 'first_name';
+  let sortColumn = "first_name";
   if (params.sort && ALLOWED_SORT_COLUMNS.includes(params.sort)) {
     sortColumn = params.sort;
   }
-  const direction = params.direction === 'desc' ? 'DESC' : 'ASC';
+  const direction = params.direction === "desc" ? "DESC" : "ASC";
 
   // Get records
   const selectQuery = `
@@ -105,10 +123,7 @@ export const findAllContactsPaginated = async (params: ContactListParams): Promi
     LIMIT $${nextIndex} OFFSET $${nextIndex + 1}
   `;
 
-  const result = await pool.query(
-    selectQuery,
-    [...whereValues, limit, offset]
-  );
+  const result = await pool.query(selectQuery, [...whereValues, limit, offset]);
 
   const last_page = Math.ceil(total / limit);
 
@@ -123,14 +138,24 @@ export const findAllContactsPaginated = async (params: ContactListParams): Promi
   };
 };
 
-export const updateContactFavorite = async (id: string, accountId: string, isFavorite: boolean): Promise<boolean> => {
-  const query = 'UPDATE contacts SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3';
+export const updateContactFavorite = async (
+  id: string,
+  accountId: string,
+  isFavorite: boolean,
+): Promise<boolean> => {
+  const query =
+    "UPDATE contacts SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3";
   const result = await pool.query(query, [isFavorite, id, accountId]);
   return (result.rowCount ?? 0) > 0;
 };
 
-export const updateContactNote = async (id: string, accountId: string, note: string | null): Promise<boolean> => {
-  const query = 'UPDATE contacts SET personal_note = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3';
+export const updateContactNote = async (
+  id: string,
+  accountId: string,
+  note: string | null,
+): Promise<boolean> => {
+  const query =
+    "UPDATE contacts SET personal_note = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND account_id = $3";
   const result = await pool.query(query, [note, id, accountId]);
   return (result.rowCount ?? 0) > 0;
 };
