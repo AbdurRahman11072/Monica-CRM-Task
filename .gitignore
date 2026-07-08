@@ -1,5 +1,5 @@
 node_modules
-dist/
+dist
 .env
 coverage/
 *.log
@@ -15,3 +15,4 @@ test_api.js
 login_response.json
 jest.config.js
 src/tests/
+compile_output.txt
